@@ -18,6 +18,7 @@
 | `mcu_adc_csv` | MCU 固件串口记录 | 变体：`time_ms,adc_raw` / `millis,value` / `voltage` 单列 | ms 或 s；单列时采样率参数必填 | 原始码值需 `vref`/`bits` 换算（`raw_scale=vref/2^bits`） |
 | `mcu_adc_bin` | 同上 | 裸 `uint16 LE` 采样 dump | t = k / rate | 采样率参数必填；大小 % 2 == 0 |
 | `saleae_csv` | Saleae Logic 2 数字 CSV | 表头 `Time [s],Channel 0,…`（注意空格）；跳变行 + 全通道快照 | 相对秒 | 与 kingst_csv 同构但分隔符为 `,`、表头带空格 |
+| `sigrok_sr` | Sigrok session | ZIP 中 `metadata` + 单设备 `logic-*` 分段；探针名、采样率、`unitsize` 1–4 自描述 | t = k / rate | 自动按分段序号拼接；多 device/capturefile、缺 metadata、空数据或非整样本均拒绝 |
 | `generic_csv` | 通用模拟（含 RIGOL 面板导出） | 表头含 `x`/`t` 列 + 一个/多个电压列（`CH1` 等）；或无表头数值列 | s 或 ms | 用于兜底；多行头的 RIGOL DS1000Z 风格跳过 `#`/文本行 |
 
 ## 嗅探规则（有序，全部失败才报 `UnknownFormatError`，消息列出尝试过的规则）
@@ -26,6 +27,7 @@
 > （`adapters/<fmt>.py`），本表描述判定语义与优先序；遍历器在 `sniff.py`。
 
 1. `.sal` 或 zip 魔数 `PK\x03\x04`（且 zip 内含 `meta.json`）→ v1 明确报"规划中"错误（诚实优于半解析）。
+   `.sr` + ZIP 魔数 → `sigrok_sr`；适配器进一步验证 `metadata`。
 2. 前 8KB 内（跳过可选 XML 前导）出现 `kvdat\x00\x00\x00` → `kingst_kvdat`。
 3. 前 8 字节 `<SALEAE>` → v1 报"规划中"（数字 bin v0/v1 与模拟 bin 规格已备档于 ADR-007，暂不实现）。
 4. `.npz` 且键 ⊇ {`t_s`,`v_V`} → `mho98_npz`。
@@ -55,6 +57,11 @@ capabilities 的每格式选项明细（`options_line`）、MCP lock_source/add_
 options JSON schema（`options_properties`）、required 选项的解析前校验
 （`validate_options`）。一致性由 tests/unit/test_adapter_registry.py 守护
 （登记完整性、派生覆盖、必填前置报错）。
+
+`kingst_kvdat` 额外读取真实 KingstVIS 3.6.x XML：恢复设备型号、稀疏物理
+通道和用户通道名；对已验证的 `SpiAnalyzer` 15 项参数向量恢复 CLK/MOSI/
+MISO/CS、模式、位序、字长和 CS 极性。`lock_protocol("spi")` 先应用这些保存
+值，再应用调用者显式参数，所以工程文件可直接离线复现 GUI 设置且仍允许覆盖。
 
 ## 统一模型字段（C1 `shared/waves.py`，权威定义）
 

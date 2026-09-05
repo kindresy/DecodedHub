@@ -10,6 +10,17 @@
 
 兜底：`lock_*` 的返回文本**总是列出刚解锁的工具名**，LLM 在客户端尚未刷新列表时也能据文本继续（或直接得到门禁引导）。
 
+## 运行时能力目录
+
+`list_capabilities` 不维护协议/格式硬编码副本。启动时先加载内置及
+`decodehub.protocols` 外部 entry points，再从 `ProtocolBinding`、节点参数、
+呈现注册、事件 schema 和采集 `AdapterSpec` 组合出能力矩阵。因而 CLI、MCP
+说明和锁协议参数约束会同时看见 UART/I2C/SPI/I3C/AVSBus/uplink/downlink
+七个协议与十个已实现格式；计划中的 Saleae 格式单独列出且不能被误调用。
+
+MCP 的 `lock_protocol.protocol` schema 由这个矩阵生成 enum，其他可扩展选择器
+保留自由字符串，避免外部插件被网关层挡住。能力结果带事件 schema 版本 `1.0`。
+
 ## 已知 SDK 坑位与对策（实测来源）
 
 | 坑 | 对策 |

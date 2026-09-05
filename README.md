@@ -1,7 +1,7 @@
 # decoded-all-in-one（decodehub）
 
 > 采集数据归一化 + 通信协议解码 + 可视化 的 **MCP 平台**。
-> 逻辑分析仪（Kingst / Saleae CSV）· 示波器（RIGOL MHO98）· MCU ADC —— 一次摄取，统一解码。
+> 逻辑分析仪（Kingst / Saleae CSV / Sigrok SR）· 示波器（RIGOL MHO98）· MCU ADC —— 一次摄取，统一解码。
 
 [设计文档（DDD）](docs/00-vision.md) · [架构](docs/30-architecture.md) · [MCP 渐进式暴露](docs/50-mcp-gateway.md) · [Headless CLI](docs/70-headless-cli.md) · [ADR](docs/adr/)
 
@@ -9,10 +9,10 @@
 
 | 痛点                       | 方案                                                                                                                    |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| 每种采集器导出格式都不同，脚本一次性       | 格式嗅探 + 9 个适配器 → 统一信号模型（`DigitalWave` 位域跳变 IR / `AnalogChannel` 紧凑时间轴）                                                 |
+| 每种采集器导出格式都不同，脚本一次性       | 格式嗅探 + 10 个适配器 → 统一信号模型（`DigitalWave` 位域跳变 IR / `AnalogChannel` 紧凑时间轴）                                                |
 | **多台采集器同时采集，各自孤立**       | **多源并行分析（Project）**：`add_source` 追加各设备导出 → **每源独立锁协议**（可不同协议）→ `run_decode()` 一次并行解码全部 → 按源取事件/渲染/导出（制品目录天然隔离）；追加源零破坏 |
 | 解析复杂多变，函数式写法失控           | **图（DAG）节点流水线**：类型化端口、构建期五规则验证、拉式记忆化求值、`inspect_graph` 可检视                                                            |
-| MCP 工具 schema 淹没 LLM 上下文 | **三阶段渐进式暴露**：初始 6 工具 → 锁定数据源后 11 → 锁定协议后 19（含管线绑定，ADR-020）（`tools/list_changed` 实测生效 + 服务端门禁兜底）                                      |
+| MCP 工具 schema 淹没 LLM 上下文 | **三阶段渐进式暴露**：初始 6 工具 → 锁定数据源后 11 → 锁定协议后 18（`tools/list_changed` 实测生效 + 服务端门禁兜底）                                      |
 | **IO/仪器固定的重复调试，每次重新配置**  | **工程档案（Profile）**：`save_profile` 固化源定义+协议锁（通道角色钉死）→ 之后 `open_project(files)` 一步直达 READY；接线错误在打开时即被防线拦截                |
 | **团队/CI 的解码仍要 LLM 在场**       | **项目配置 + headless CLI（ADR-015）**：`decodehub.toml`（glob 批量 + 导出/渲染管线）→ `decodehub run` 一条命令出 index/summary；`diff` 做事件流回归对比                        |
 | 解码结果难读                   | 图文配对：时序图帧 span 编号 ↔ Markdown 事件表；JSON/CSV 导出落盘                                                                        |
@@ -138,9 +138,13 @@ export_events(format="csv", source="scope")   # out/<capture_id>/events.csv（�
 
 ## 支持矩阵（v1）
 
-- **格式**：kingst_csv / kingst_bin / kingst_kvdat · mho98_csv / mho98_npz（含扩频突发采集）· mcu_adc_csv / mcu_adc_bin · saleae_csv（数字）· generic_csv（模拟兜底）
-- **协议**：UART（auto-baud、5–9 位、奇偶、1/1.5/2 停止、反相）· I2C（7/10-bit、重复起始、时钟拉伸容忍）· SPI（四模式、CS 帧化、1–32 位词）· **上行 DSSS + 下行 DBPSK**（模拟直达：PN 相关解扩、码片速率自动估计、纯噪声诚实拒绝；下行以上行帧为锚做偏移解析——**跨节点扇入 + 跨源图注入**的示范；协议形状参数全量可配，ADR-010/011）
+- **格式（10）**：kingst_csv / kingst_bin / kingst_kvdat · mho98_csv / mho98_npz（含扩频突发采集）· mcu_adc_csv / mcu_adc_bin · saleae_csv（数字）· sigrok_sr（`.sr` 会话）· generic_csv（模拟兜底）
+- **协议（7）**：UART（auto-baud、5–9 位、奇偶、1/1.5/2 停止、反相）· I2C（7/10-bit、重复起始、时钟拉伸容忍）· SPI（四模式、CS 帧化、1–32 位词、单向数据线降级）· I3C（Basic SDR、CCC/DAA、legacy I2C）· AVSBus（32-clock controller/target 子帧、CRC-3）· **上行 DSSS + 下行 DBPSK**（模拟直达：PN 相关解扩、码片速率自动估计、纯噪声诚实拒绝；下行以上行帧为锚做偏移解析——**跨节点扇入 + 跨源图注入**的示范；协议形状参数全量可配，ADR-010/011）
 - **图表**：数字时序图（帧着色+编号）、模拟波形+阈值叠加图
+
+能力清单不是手工常量：`list_capabilities`、CLI 和 MCP 参数约束都从适配器、
+协议插件、绑定、节点参数、呈现规则与事件 schema 在运行时派生。事件/报告的
+发布 schema 当前为 `1.0`。
 
 ## 工程结构（DDD）
 
@@ -159,10 +163,14 @@ src/decodehub/
 
 ## 扩展
 
-- **新协议**：协议目录四件套（`decode.py` 解码 + `encode.py` 编码 + `binding.py` 绑定声明 + `present.py` 呈现 + `README.md` 原理）→ `__init__.py` 一行导入 → 往返测试。引擎/网关/呈现/应用层零改动（ADR-012/013/014）。
-- **新格式**：`adapters/<name>.py` + `sniff.py` 规则表插行 + 样本测试。
+- **新协议**：协议目录五件套（`decode.py` 解码 + `encode.py` 编码 + `binding.py` 绑定声明 + `present.py` 呈现 + `README.md` 原理）→ 注册 `PluginDescriptor` → 往返测试。外部包通过 Python entry point 组 `decodehub.protocols` 投放，插件 API 版本为 `1`；引擎/网关/应用层不需硬编码协议名。
+- **新格式**：`adapters/<name>.py` 声明 `AdapterSpec` + 在 `SPECS` 中登记 + 样本测试；嗅探、选项校验和能力目录自动派生。
 - 详见 [docs/30-architecture.md 扩展指南](docs/30-architecture.md)。
+
+可再分发的真实波形、来源/许可证/SHA-256 和预期结果见
+[测试资产清单](docs/test-assets.md)；本次下游集成的逐项测试证据见
+[集成测试概要](docs/integration-test-summary.md)。
 
 ## 已知边界（ADR-007）
 
-Saleae `.sal`/二进制、CAN/1-Wire、甘特/统计图延后；裸 u16 bin 无魔数需显式 `format`；单会话/进程（stdio 语义）。
+Saleae `.sal`/二进制、CAN/1-Wire、甘特/统计图延后；I3C 当前仅被动 Basic SDR（不解析 HDR 电气所有权）；裸 u16 bin 无魔数需显式 `format`；单会话/进程（stdio 语义）。

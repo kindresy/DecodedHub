@@ -17,12 +17,15 @@ decoded_all_in_one/
 │   ├── acquisition/            # C2 采集归一化
 │   │   ├── sniff.py            # 格式嗅探（有序规则表）
 │   │   ├── adapters/           # 一格式一文件：kingst_csv/bin/kvdat、mho98_csv/npz、
-│   │   │                       #   mcu_adc_csv/bin、saleae_csv、generic_csv
+│   │   │                       #   mcu_adc_csv/bin、saleae_csv、sigrok_sr、generic_csv
 │   │   └── service.py          # IngestService：path(+options) → Capture
 │   ├── decode/                 # C3 解码（核心域）
 │   │   ├── graph.py            # Graph/NodeSpec/Edge/PortType、验证、记忆化求值
 │   │   ├── registry.py         # NODE_REGISTRY：type → Node 类；注册装饰器
 │   │   ├── events.py           # DecodedEvent 家族 + DecodeReport
+│   │   ├── schema.py           # 事件/报告 schema 1.0 与字段/错误校验
+│   │   ├── plugins.py          # 插件 API v1：内置描述符 + entry point 发现
+│   │   ├── capabilities.py     # 从各注册表派生运行时能力矩阵
 │   │   ├── nodes/
 │   │   │   ├── picks.py        # digital_pick / analog_pick
 │   │   │   ├── slicer.py       # analog → digital（滞回阈值）
@@ -138,14 +141,40 @@ DISCOVERY ──lock_source(成功)──▶ SOURCE_LOCKED ──lock_protocol(�
 
 ## 扩展指南
 
+### 插件拓扑与解耦边界
+
+```
+外部包 entry point: decodehub.protocols       内置 PluginDescriptor
+                    \                            /
+                     +---- load_plugins() ------+
+                                  |
+                    导入协议模块并验证 API v1
+                                  |
+        +-------------------------+-------------------------+
+        |                         |                         |
+ ProtocolBinding            Node registry             Presentation
+ 角色/图模板/参数路由       纯解码算法与端口契约       表格/CSV/时序图约定
+        +-------------------------+-------------------------+
+                                  |
+                       capability_matrix()
+                                  |
+                   App / CLI / MCP / JSON schema
+```
+
+平台只依赖稳定契约，不依赖具体协议实现。插件加载后必须同时提供绑定、节点和
+呈现注册，节点契约会立即校验；重复协议名、API 版本不兼容或三者缺一都在启动
+阶段失败。能力矩阵再与采集 `AdapterSpec`、事件 schema 合并，因此新增协议
+不会要求在 CLI/MCP 中维护另一份枚举。
+
 **新增协议**（ADR-012/013/014：一协议一目录，预计 ~350 行 + 文档 + 测试）：
 1. `decode/protocols/<proto>/decode.py` 实现 `Node`（INPUTS/OUTPUTS/PARAMS/run，参数必附 doc——目录文案由它派生），事件继承 `DecodedEvent`；
 2. `decode/protocols/<proto>/encode.py` 合成编码器（往返测试的编码方向）；
 3. `decode/protocols/<proto>/binding.py` 协议绑定（角色/通道数需求/参数路由/锚依赖声明，ADR-014）；
 4. `decode/protocols/<proto>/present.py` 注册呈现约定（ADR-013：中文名/内容列/CSV 专有列/是否上时序图/preview kind）；
 5. `decode/protocols/<proto>/README.md` **编解码原理文档**（波形模型/发送侧/接收侧/参数/事件/测试锚点）；
-6. `protocols/<proto>/__init__.py` 加一行导入（解码器 + 绑定 + 呈现注册）；
-7. `tests/property/` 往返测试。
+6. 暴露 `PluginDescriptor(protocol, module, node_type, version="1")`；内置协议加入
+   `BUILTIN_PLUGINS`，外部发行包声明 `decodehub.protocols` entry point；
+7. `tests/property/` 往返测试，并用事件 schema 契约测试固定发布字段。
 
 **协议客制图**（可选，ADR-022）：通用时序图表达不了的"协议自身最佳显示"
 （星座图/眼图/包结构图……）→ 新建 `render/contrib/<proto>.py` 自注册
@@ -155,12 +184,12 @@ DISCOVERY ──lock_source(成功)──▶ SOURCE_LOCKED ──lock_protocol(�
 
 引擎、网关、呈现、**应用层**零改动——图模板由 `decode/bindings.py` 的
 `build_lock_graph` 按绑定统一构建（数字/切片/模拟直达/跨源扇入四形态），
-工具目录 `PROTOCOL_CATALOG` 从绑定与 `Node.PARAMS.doc` 派生，
+工具目录和协议参数 schema 从能力矩阵派生，
 新协议事件自动获得 JSON/Markdown/CSV/图表渲染（渲染只依赖 `DecodedEvent` 基础字段）。
 
 **新增采集格式**：
-1. `adapters/<name>.py`：`sniff(fp) -> bool` + `load(path, options) -> Capture`；
-2. `sniff.py` 规则表按序插入（魔数优先，文本头嗅探靠后）；
+1. `adapters/<name>.py`：`load(path, options) -> Capture` + `AdapterSpec`；
+2. 在 `adapters.SPECS` 按嗅探优先级登记（魔数优先，文本头靠后）；
 3. `tests/unit/test_sniff.py` 加样本。
 
 **MCP 新工具**：`mcp_server/tools.py` 的 `ToolSpec` 表加条目并标注所属阶段；网关自动获得门禁与列表过滤能力。

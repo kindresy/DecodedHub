@@ -16,6 +16,8 @@
 | `uart_decode`     | `in: digital`                | `out: events`  | `rx: str`（角色→通道名映射，图模板已解析为具体名）、`baud: float                                                                                 | "auto"`、`data_bits: 5..9=8`、`parity: N/O/E`、`stop_bits: 1/1.5/2`、`invert: bool`、`bit_order: lsb/msb` | §3.1 |
 | `i2c_decode`      | `in: digital`                | `out: events`  | `scl, sda: str`、`stretch_warn_s: float=1e-3`                                                                                | §3.2                                                                                                 |      |
 | `spi_decode`      | `in: digital`                | `out: events`  | `clk: str`、`cs/miso/mosi: str?`、`cpol: 0/1`、`cpha: 0/1`、`word_bits: 1..32=8`、`bit_order: lsb/msb`、`cs_active: low/high=low` | §3.3                                                                                                 |      |
+| `i3c_decode`      | `in: digital`                | `out: events`  | `scl, sda: str`、`mode: auto/sdr/legacy_i2c`、`bus_profile: auto/pure/mixed`                                                   | I3C Basic SDR：奇校验/T-bit、CCC、ENTDAA、HDR 明确标记 unsupported                                             |      |
+| `avsbus_decode`   | `in: digital`                | `out: events`  | `clk, mdata, sdata: str`、`sample_edge: rising/falling`                                                                       | 每 32 clocks 解 controller/target 子帧、命令字段、状态与 CRC-3；错误后按帧边界恢复                                  |      |
 | `event_filter`    | `in: events`                 | `out: events`  | `kinds: list[str]?`、`t_min/t_max: float?`、`has_errors: bool?`                                                               | 时间窗 + 类型 + 错误过滤                                                                                      |      |
 | `uplink_precond`  | `in: analog`                 | `out: analog`  | `channel: str`、`profile: str`、`chip_s: float?`                                                                              | 上行 DSSS 预条件：抽取到 ~12 样点/chip + 1ms 滑动均值 HPF 剥离 60Hz 包络（ADR-010）                                          |      |
 | `uplink_decode`   | `in: analog`                 | `out: events`  | 同上 + `invert/unipolar/msb_first/pn_word/pn_len/pream/data_bits`                                                             | 上行 DSSS：PN 相关解扩 → 梳齿符号 → 能量分段 → 帧同步 → 码片速率仲裁（§3.4）；纯噪声诚实拒绝                                        |      |
@@ -74,6 +76,8 @@ I2C 同时输出细粒度事件（start/addr/data，供绘图标注）与**传�
 | UART | `protocols/uart/` | [README](../src/decodehub/decode/protocols/uart/README.md) | digital（跳变流） |
 | I2C | `protocols/i2c/` | [README](../src/decodehub/decode/protocols/i2c/README.md) | digital（2ch 位域） |
 | SPI | `protocols/spi/` | [README](../src/decodehub/decode/protocols/spi/README.md) | digital（2–4ch） |
+| I3C | `protocols/i3c/` | [README](../src/decodehub/decode/protocols/i3c/README.md) | digital（SCL/SDA；Basic SDR） |
+| AVSBus | `protocols/avsbus/` | [README](../src/decodehub/decode/protocols/avsbus/README.md) | digital（clock/MData/SData） |
 | 上行 DSSS | `protocols/uplink/` | [README](../src/decodehub/decode/protocols/uplink/README.md) | **analog 直达**（含 vendored dsss.py） |
 | 下行 DBPSK | `protocols/downlink/` | [README](../src/decodehub/decode/protocols/downlink/README.md) | **analog + events 扇入**（含 vendored dpsk.py） |
 
@@ -81,6 +85,15 @@ I2C 同时输出细粒度事件（start/addr/data，供绘图标注）与**传�
 上/下行协议形状参数全量可配、默认值 = 档案预设而非常量（ADR-011）；
 公共辅助（模拟通道挑选/均匀性校验）统一走 `protocols/_shared.py`，协议间不得私有互导（ADR-012）；
 图模板/角色/参数路由经协议绑定声明（ADR-014），应用层只做会话编排。
+
+I3C 当前识别 ENEC、DISEC、ENTAS0–3、RSTDAA、ENTDAA、DEFSLVS、SETMWL、
+SETMRL、GETMWL、GETMRL、GETPID、GETBCR、GETDCR、ENTHDR0–7、GETSTATUS、
+GETACCCR。被动两线波形无法证明未知私有传输必为 I3C，`mode=auto` 会诚实标为
+ambiguous；HDR-DDR/TSP/TSL/BT 只发 unsupported 事件，不推测电气驱动所有权。
+
+所有事件与报告携带 `schema_version="1.0"`。JSON 在序列化时执行 kind、协议
+字段和错误码校验；CSV 同样输出版本列；Markdown 对未知第三方事件保留可读
+兜底，方便排障但不把它误当成已通过机器契约。
 
 ## 4. 合成波形发生器（`synth.py`，测试矢量的编码方向）
 
