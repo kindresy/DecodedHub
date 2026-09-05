@@ -276,7 +276,7 @@ def build_lock_graph(
     g = Graph()
     input_nodes: dict[str, str] = {}
     reg = get_registry()
-    role_keys = set(binding.role_param.values())
+    role_keys = {binding.role_param.get(role, role) for role in binding.roles}
     decode_params = {**node_routed_params(reg, binding.node_type, tool_params,
                                           exclude=role_keys),
                      **_role_params(binding, channel_map)}

@@ -207,6 +207,10 @@ def lock_protocol(state: SessionState, protocol: str, params: dict | None,
     cap = state.capture_of(source)
     alias = source or state.single_alias()
     params = dict(params or {})
+    defaults = cap.meta.extra.get("protocol_defaults", {})
+    saved = defaults.get(protocol, {}) if isinstance(defaults, dict) else {}
+    if isinstance(saved, dict):
+        params = {**saved, **params}
     name = (name or "").strip() or protocol
     # 实例名约束（Bug 6）：不能包含锁键分隔符 |，否则报告键解析错位
     probs = name_constraint_problems(name, f"lock_protocol(源 {alias!r})")
