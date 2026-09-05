@@ -44,6 +44,24 @@ class I2cEvent(DecodedEvent):
 
 
 @dataclass
+class I3cEvent(DecodedEvent):
+    """I3C SDR/legacy-I2C event with explicit ninth-bit semantics."""
+
+    mode: str = "unknown"
+    address: int | None = None
+    read: bool | None = None
+    data_bytes: list[int] = field(default_factory=list)
+    acks: list[bool | None] = field(default_factory=list)
+    parity_ok: list[bool | None] = field(default_factory=list)
+    t_bits: list[int | None] = field(default_factory=list)
+    ccc: int | None = None
+    ccc_name: str | None = None
+    pid: int | None = None
+    bcr: int | None = None
+    dcr: int | None = None
+
+
+@dataclass
 class SpiEvent(DecodedEvent):
     mosi: int | None = None
     miso: int | None = None

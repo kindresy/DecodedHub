@@ -13,10 +13,11 @@ from ..shared.waves import AnalogChannel, DigitalWave
 from .protocols.uart.encode import encode_uart  # noqa: F401
 from .protocols.i2c.encode import encode_i2c  # noqa: F401
 from .protocols.spi.encode import encode_spi  # noqa: F401
+from .protocols.i3c.encode import encode_i3c  # noqa: F401
 from .protocols.uplink.encode import encode_uplink  # noqa: F401
 from .protocols.downlink.encode import encode_downlink  # noqa: F401
 
-__all__ = ["encode_uart", "encode_i2c", "encode_spi", "encode_uplink",
+__all__ = ["encode_uart", "encode_i2c", "encode_spi", "encode_i3c", "encode_uplink",
            "encode_downlink", "analogify", "save_kingst_csv"]
 
 

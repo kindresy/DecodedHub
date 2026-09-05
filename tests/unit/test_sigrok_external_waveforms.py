@@ -7,6 +7,7 @@ import pytest
 
 from decodehub.acquisition.service import load_capture
 from decodehub.decode.protocols.i2c.decode import I2cDecodeNode
+from decodehub.decode.protocols.i3c.decode import I3cDecodeNode
 from decodehub.decode.protocols.spi.decode import SpiDecodeNode
 from decodehub.decode.protocols.uart.decode import UartDecodeNode
 from decodehub.shared.errors import IngestError
@@ -60,6 +61,18 @@ def test_sigrok_multichunk_session_is_concatenated() -> None:
 
     assert capture.digital.n_samples == 5_000_000
     assert capture.digital.channels == ("MISO", "CS#", "MOSI", "CLK")
+
+
+def test_sigrok_i3c_example_reaches_daa_and_hdr_boundaries() -> None:
+    capture = load_capture(ROOT / "i3c" / "ExampleWaveform.sr")
+
+    events = I3cDecodeNode().run(
+        {"in": capture.digital},
+        _params(I3cDecodeNode, scl="scl", sda="sda", mode="auto"),
+    )["out"]
+    assert any(event.kind == "i3c.daa" for event in events)
+    assert any(event.kind == "i3c.unsupported" and "hdr" in event.errors
+               for event in events)
 
 
 def test_sigrok_empty_logic_is_an_ingest_error(tmp_path: Path) -> None:

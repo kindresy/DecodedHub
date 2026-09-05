@@ -30,6 +30,7 @@ BUILTIN_PLUGINS: tuple[PluginDescriptor, ...] = (
     PluginDescriptor("spi", "decodehub.decode.protocols.spi", "spi_decode"),
     PluginDescriptor("uplink", "decodehub.decode.protocols.uplink", "uplink_decode"),
     PluginDescriptor("downlink", "decodehub.decode.protocols.downlink", "downlink_decode"),
+    PluginDescriptor("i3c", "decodehub.decode.protocols.i3c", "i3c_decode"),
 )
 
 _loaded: dict[str, PluginDescriptor] = {}
