@@ -17,12 +17,11 @@ import numpy as np
 
 from ..acquisition.project import Project, SourceEntry
 from ..acquisition.service import load_capture
-from ..acquisition.sniff import PLANNED_FORMATS, SUPPORTED_FORMATS
 from ..decode.events import DecodeReport, DecodedEvent
+from ..decode.capabilities import capability_matrix, protocol_catalog
 from ..decode.graph import Graph, evaluate, validate
 from ..decode.presentation import all_preview_kinds
 from ..decode.bindings import (
-    all_bindings,
     auto_map_channels,
     build_lock_graph,
     clone_graph,
@@ -42,35 +41,7 @@ from .session import (ProtocolLock, SessionState, Stage, make_lock_key,
 
 # ------------------------------------------------------------ 协议目录 ---
 
-def _derive_protocol_catalog() -> dict[str, dict]:
-    """工具层协议目录：从协议绑定（ADR-014）派生。
-
-    唯一登记点在 protocols/<p>/binding.py；节点参数文档取自 Node.PARAMS.doc
-    （与校验同源，不再人工复写），角色覆盖与工具级参数（uplink_source）由
-    绑定补充。非模拟直达协议在**模拟源**上经 slicer 切片解码（lock_protocol
-    放行 slicer PARAMS，ADR-021），目录同步列出（标注适用条件）——`params`
-    命令 / capabilities 与实际可配集合同源，不再漏报切片参数。
-    """
-    reg = get_registry()
-    slicer_docs = {name: p.doc for name, p in reg["slicer"].PARAMS.items() if p.doc}
-    out: dict[str, dict] = {}
-    for b in all_bindings():
-        params = {name: p.doc for name, p in reg[b.node_type].PARAMS.items() if p.doc}
-        if b.precond_node_type:
-            params.update({name: p.doc for name, p in reg[b.precond_node_type].PARAMS.items()
-                           if p.doc and name not in params})
-        for r in b.roles:
-            params.setdefault(r, f"{r} 角色显式指定通道名（覆盖自动映射）")
-        params.update(b.tool_params_doc)
-        if not b.analog_direct:
-            params.update({k: f"{doc}（模拟源切片时）" for k, doc in slicer_docs.items()
-                           if k not in params})
-        out[b.protocol] = {"roles": list(b.roles), "params": params,
-                           "needs": dict(b.needs), "hint": b.hint}
-    return out
-
-
-PROTOCOL_CATALOG: dict[str, dict] = _derive_protocol_catalog()
+PROTOCOL_CATALOG: dict[str, dict] = protocol_catalog()
 
 
 # ---------------------------------------------------------------- 源管理 ---
@@ -855,16 +826,18 @@ def open_project(state: SessionState, profile: str, files: dict) -> str:
 
 
 def capabilities_text() -> str:
-    from ..acquisition.adapters import options_line
-
+    matrix = capability_matrix()
     fmt_rows = []
-    for k, v in SUPPORTED_FORMATS.items():
-        ol = options_line(k)
-        fmt_rows.append(f"- `{k}`: {v}" + (f"；选项: {ol}" if ol else ""))
+    for k, item in matrix["formats"].items():
+        ol = "、".join(name + ("*" if option["required"] else "")
+                        for name, option in item["options"].items())
+        fmt_rows.append(f"- `{k}`: {item['description']}" + (f"；选项: {ol}" if ol else ""))
     fmts = "\n".join(fmt_rows)
-    planned = "\n".join(f"- `{k}`: {v}" for k, v in PLANNED_FORMATS.items())
+    planned = "\n".join(f"- `{k}`: {item['description']}"
+                         for k, item in matrix["planned_formats"].items())
     protos = []
-    for name, c in PROTOCOL_CATALOG.items():
+    for item in matrix["protocols"]:
+        name, c = item["protocol"], item
         ps = "; ".join(f"{k}={v}" for k, v in c["params"].items())
         protos.append(f"- **{name}**: 角色 {c['roles']}。{c['hint']}\n  参数: {ps}")
     return (

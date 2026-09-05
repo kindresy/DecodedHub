@@ -17,6 +17,7 @@ from typing import Callable
 from ..app import services
 from ..app.session import SessionState, Stage
 from ..acquisition.adapters import options_properties
+from ..decode.capabilities import protocol_capabilities
 from ..decode.registry import node_catalog
 from ..render.format import EXPORT_FORMAT_KEYS
 from ..render.format import events_markdown
@@ -182,6 +183,8 @@ class ToolSpec:
 _P = {"type": "object", "properties": {}, "required": []}
 _SRC = {"type": "string", "description": "源别名（多源必填；唯一源可省）"}
 _PRO = {"type": "string", "description": "协议或锁实例名消歧（一源多锁时必填，如 uart / uart1；实例名见 get_session 的锁键 源|名）"}
+_PROTOCOL_NAMES = [item["protocol"] for item in protocol_capabilities()]
+_LOCK_PROTOCOL = {"type": "string", "enum": _PROTOCOL_NAMES}
 
 TOOLS: list[ToolSpec] = [
     ToolSpec(
@@ -252,12 +255,12 @@ TOOLS: list[ToolSpec] = [
         _add_source),
     ToolSpec(
         "lock_protocol",
-        "按源锁定解码协议（uart/i2c/spi）并自动映射通道。多源时 source 必填。"
+        "按源锁定已注册解码协议并自动映射通道。多源时 source 必填。"
         "各源可锁不同协议，互不影响。",
         Stage.SOURCE_LOCKED,
         {"type": "object",
          "properties": {
-             "protocol": {"type": "string", "enum": ["uart", "i2c", "spi", "uplink", "downlink"]},
+             "protocol": _LOCK_PROTOCOL,
              "source": _SRC,
              "params": {"type": "object", "description":
                         "如 {\"baud\":115200} / {\"scl\":\"D0\",\"sda\":\"D1\"} / "

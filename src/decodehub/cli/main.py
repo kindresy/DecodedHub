@@ -23,6 +23,7 @@ from ..app.config import (CONFIG_NAME, check_capture_coverage, expand_captures,
 from ..app.diffing import diff_files
 from ..app.profile import validate_profile_dict
 from ..app.session import make_lock_key, sink_name_conflict_problems
+from ..decode.capabilities import protocol_catalog
 from ..shared.errors import DecodehubError
 
 
@@ -57,7 +58,7 @@ def cmd_validate(args) -> int:
         # 已知格式/协议白名单复核（load_profile 只做结构校验）
         for p in validate_profile_dict(spec.to_dict(),
                                        known_formats=set(SUPPORTED_FORMATS),
-                                       known_protocols=set(services.PROTOCOL_CATALOG)):
+                                       known_protocols=set(protocol_catalog())):
             problems.append(f"runs.{run.name}（{spec.name}）: {p}")
         # 管线名 vs 锁实例名（Bug 2/2b）：档案引用的锁在这里声明期查
         # （内联定义的已在 load_config 查过；重复查一次无害）
@@ -137,7 +138,7 @@ def cmd_diff(args) -> int:
 
 def cmd_params(args) -> int:
     """列出协议的全部可配参数（派生自 Node.PARAMS，ADR-021——与校验同源）。"""
-    catalog = services.PROTOCOL_CATALOG
+    catalog = protocol_catalog()
     names = [args.protocol] if args.protocol else sorted(catalog)
     for n in names:
         c = catalog.get(n)
