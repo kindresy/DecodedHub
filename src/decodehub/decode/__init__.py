@@ -1,4 +1,5 @@
 from .events import (
+    AvsBusEvent,
     DecodeReport,
     DecodedEvent,
     I2cEvent,
@@ -19,7 +20,7 @@ from .fields import register_fields_presentation as _register_fields_presentatio
 _register_fields_presentation()
 
 __all__ = [
-    "DecodeReport", "DecodedEvent", "I2cEvent", "I3cEvent", "SpiEvent", "UartEvent",
+    "DecodeReport", "DecodedEvent", "I2cEvent", "I3cEvent", "SpiEvent", "UartEvent", "AvsBusEvent",
     "Edge", "Graph", "NodeSpec", "Param", "evaluate", "validate",
     "NODE_REGISTRY", "node_catalog", "register",
     "PluginDescriptor", "BUILTIN_PLUGINS", "load_plugins",

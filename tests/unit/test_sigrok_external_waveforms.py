@@ -6,6 +6,7 @@ import zipfile
 import pytest
 
 from decodehub.acquisition.service import load_capture
+from decodehub.decode.protocols.avsbus.decode import AvsBusDecodeNode
 from decodehub.decode.protocols.i2c.decode import I2cDecodeNode
 from decodehub.decode.protocols.i3c.decode import I3cDecodeNode
 from decodehub.decode.protocols.spi.decode import SpiDecodeNode
@@ -73,6 +74,22 @@ def test_sigrok_i3c_example_reaches_daa_and_hdr_boundaries() -> None:
     assert any(event.kind == "i3c.daa" for event in events)
     assert any(event.kind == "i3c.unsupported" and "hdr" in event.errors
                for event in events)
+
+
+def test_avsbus_csv_fixture_decodes_frame_and_crc() -> None:
+    capture = load_capture(
+        ROOT / "avsbus" / "avsbus_smoke.csv",
+        format_key="kingst_csv",
+        options={"sample_rate": 1_000_000},
+    )
+
+    events = AvsBusDecodeNode().run(
+        {"in": capture.digital}, _params(AvsBusDecodeNode)
+    )["out"]
+    frames = [event for event in events if event.kind == "avsbus.frame"]
+    assert len(frames) == 1
+    assert frames[0].cmd_data == 0x1234
+    assert frames[0].main_crc_ok and frames[0].response_crc_ok
 
 
 def test_sigrok_empty_logic_is_an_ingest_error(tmp_path: Path) -> None:

@@ -31,6 +31,7 @@ BUILTIN_PLUGINS: tuple[PluginDescriptor, ...] = (
     PluginDescriptor("uplink", "decodehub.decode.protocols.uplink", "uplink_decode"),
     PluginDescriptor("downlink", "decodehub.decode.protocols.downlink", "downlink_decode"),
     PluginDescriptor("i3c", "decodehub.decode.protocols.i3c", "i3c_decode"),
+    PluginDescriptor("avsbus", "decodehub.decode.protocols.avsbus", "avsbus_decode"),
 )
 
 _loaded: dict[str, PluginDescriptor] = {}

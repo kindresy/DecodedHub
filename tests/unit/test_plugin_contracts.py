@@ -14,7 +14,7 @@ def _module(name: str):
 def test_all_existing_protocols_load_through_descriptors() -> None:
     plugins = _module("decodehub.decode.plugins")
     assert [item.protocol for item in plugins.load_plugins()] == [
-        "uart", "i2c", "spi", "uplink", "downlink", "i3c"
+        "uart", "i2c", "spi", "uplink", "downlink", "i3c", "avsbus"
     ]
 
 

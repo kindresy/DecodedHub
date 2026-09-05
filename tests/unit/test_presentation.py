@@ -33,7 +33,7 @@ def test_protocol_presentations_registered_on_import():
     """
     # 相对断言（多 agent 并行防语义冲突）：既有协议族列序冻结，fields 恒在尾
     protos = [p.protocol for p in ps.all_presentations()]
-    assert protos[:-1] == ["uart", "i2c", "spi", "uplink", "downlink", "i3c"]
+    assert protos[:-1] == ["uart", "i2c", "spi", "uplink", "downlink", "i3c", "avsbus"]
     assert protos[-1] == "fields"
     for kind, proto in [("uart.frame", "uart"), ("uart.warn", "uart"),
                         ("i2c.transfer", "i2c"), ("i2c.addr", "i2c"),
@@ -111,7 +111,8 @@ def test_all_preview_kinds_union_contains_downlink():
     assert kinds[:-1] == ("uart.frame", "i2c.transfer", "i2c.addr",
                           "spi.transfer", "spi.word", "uplink.frame",
                           "downlink.packet", "i3c.transfer", "i3c.addr",
-                          "i3c.ccc", "i3c.daa")
+                          "i3c.ccc", "i3c.daa", "avsbus.frame",
+                          "avsbus.warn", "avsbus.resync")
     assert kinds[-1] == "fields.split"
 
 

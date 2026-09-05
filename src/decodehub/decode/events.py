@@ -70,6 +70,29 @@ class SpiEvent(DecodedEvent):
 
 
 @dataclass
+class AvsBusEvent(DecodedEvent):
+    """PMBus/SMIF AVSBus controller/target frame."""
+
+    mode: str = "auto"
+    raw_mdata: int = 0
+    raw_sdata: int = 0
+    start_code: int = 0
+    cmd: int = 0
+    command: str = "reserved"
+    cmd_group: int = 0
+    cmd_data_type: int = 0
+    select: int = 0
+    cmd_data: int = 0
+    response_data: int = 0
+    slave_ack: int = 0
+    status_resp: int = 0
+    main_crc: int = 0
+    response_crc: int = 0
+    main_crc_ok: bool = False
+    response_crc_ok: bool = False
+
+
+@dataclass
 class UplinkEvent(DecodedEvent):
     """上行 DSSS 帧（kind ∈ uplink.frame / uplink.warn）。
 

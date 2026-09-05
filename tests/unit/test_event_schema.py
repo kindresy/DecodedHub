@@ -50,6 +50,7 @@ def test_schema_rejects_unregistered_subclass_field() -> None:
 
 def test_builtin_kind_and_field_registries_are_complete() -> None:
     schema = _schema()
-    assert {"uart.frame", "i2c.transfer", "spi.word", "i3c.daa", "fields.split"} <= schema.known_kinds()
+    assert {"uart.frame", "i2c.transfer", "spi.word", "i3c.daa",
+            "avsbus.frame", "fields.split"} <= schema.known_kinds()
     assert {"value", "parity", "data_bits"} <= schema.known_event_fields("uart")
     assert {"spec", "source_kind", "fields"} <= schema.known_event_fields("fields")

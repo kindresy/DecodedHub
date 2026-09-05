@@ -3,4 +3,4 @@
 内置与外部协议由 decode.plugins 显式加载；这里仅保留可发现的包名。
 """
 
-__all__ = ("uart", "i2c", "spi", "uplink", "downlink", "i3c")
+__all__ = ("uart", "i2c", "spi", "uplink", "downlink", "i3c", "avsbus")

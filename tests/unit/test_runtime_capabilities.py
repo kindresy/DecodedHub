@@ -15,7 +15,7 @@ def test_runtime_matrix_matches_live_registries() -> None:
 
     matrix = capabilities.capability_matrix()
     assert {item["protocol"] for item in matrix["protocols"]} == {
-        "uart", "i2c", "spi", "uplink", "downlink", "i3c"
+        "uart", "i2c", "spi", "uplink", "downlink", "i3c", "avsbus"
     }
     assert set(matrix["formats"]) == set(SUPPORTED_FORMATS)
     assert all(item["node_type"] and item["presentation"] for item in matrix["protocols"])
