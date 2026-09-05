@@ -40,7 +40,6 @@ mkdir -p tests/data/external/{uart,i2c,spi,i3c,avsbus}
 cp ../decodehub-code-e127559/tests/data/external/uart/hello_world_8n1_115200.sr tests/data/external/uart/
 cp ../decodehub-code-e127559/tests/data/external/i2c/rtc_ds1307_200khz.sr tests/data/external/i2c/
 cp ../decodehub-code-e127559/tests/data/external/spi/*.sr tests/data/external/spi/
-cp ../decodehub-code-e127559/tests/data/external/spi_bootloader_*.kvdat tests/data/external/spi/
 cp ../decodehub-code-e127559/tests/data/external/i3c/* tests/data/external/i3c/
 cp ../decodehub-code-e127559/tests/data/external/avsbus/avsbus_smoke.csv tests/data/external/avsbus/
 ```
@@ -58,9 +57,6 @@ EXPECTED = {
     "i2c/rtc_ds1307_200khz.sr": "963b2d1d34a7a1dedbbe04c59b70de305d4c19f8ae9789a8029ce2495795b96d",
     "spi/spi_0x5a_cpol0_cpha0.sr": "bf27e3dcf9dec7455aa28aa2766fdc7edfdc9c07014e9ad6d134f0229a6a5dff",
     "spi/max7219.sr": "fb740e70746d268ee697d86eaaa2502727c4d5abdfaeb6a5f7dd0df37fb26325",
-    "spi/spi_bootloader_good.kvdat": "2344ca14e50d40e9a1c744aaf684536fe499cc4222a02820f1d80d75d3ff2c2c",
-    "spi/spi_bootloader_bad.kvdat": "68c73b3dee54c257b8956aed644fb97072afb979898887458b80ab1ae0c0e2d9",
-    "spi/spi_bootloader_with_init.kvdat": "6de0bb21839b55202a545845283d3b6a1849fbd157f1a1a8d34e85d3db944d4d",
     "i3c/ExampleWaveform.sr": "2429e287671243a39ae26b12aff062b3c82944d0527a4830b5c40db72c3f7ca9",
     "i3c/ExampleWaveform.csv": "42c2ec35d7da641467f941c66f3e20362e53e8fd0f3103655b29e880233332ca",
     "i3c/i3c_sdr_smoke.csv": "1dd3e28520b3652c47fb41a56f69d56a94c16453863a6a800babb3712aefca6b",
@@ -74,7 +70,10 @@ def test_external_assets_match_manifest():
 ```
 
 These digests were calculated from the immutable source files before the plan
-was committed. The manifest test guarantees byte-for-byte preservation.
+was committed. The manifest test guarantees byte-for-byte preservation. The
+three real KVDAT forum attachments have no stated redistribution license, so
+their URLs and hashes are documented but their tests consume the local copies
+from the sibling repository and skip when those files are unavailable.
 
 - [ ] **Step 3: Document provenance and expected decodes**
 
@@ -92,7 +91,7 @@ PYTHONPATH=src ../decodehub-code-e127559/.venv/bin/python -m pytest tests
 ```
 
 Expected: `380 passed, 2 skipped` before adding the new manifest test, then
-`381 passed, 2 skipped` after it.
+`381 passed, 2 skipped` after it. The KVDAT files are not part of this count.
 
 - [ ] **Step 5: Commit and push**
 
