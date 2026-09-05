@@ -42,7 +42,8 @@ class ProtocolBinding:
     """一个协议的声明式绑定：图模板怎么建、参数怎么路由、通道角色怎么映射。
 
     roles           通道角色（自动映射顺序即声明顺序）。
-    optional_roles  可缺席角色（如 SPI 的 miso/cs——不参与必需校验）。
+    optional_roles  可缺席角色（不参与逐项必需校验）。
+    require_any     每组至少映射一个角色（如 SPI 的 mosi/miso）。
     needs           源通道数下限（min_digital / min_analog）。
     analog_direct   模拟直达（不经 slicer，ADR-010）；此类协议只接受模拟源。
     precond_node_type 预条件节点 type（analog_direct 时的可选中间节点，如 uplink_precond）。
@@ -60,6 +61,7 @@ class ProtocolBinding:
     roles: tuple[str, ...]
     needs: Mapping[str, int] = field(default_factory=dict)
     optional_roles: tuple[str, ...] = ()
+    require_any: tuple[tuple[str, ...], ...] = ()
     role_aliases: Mapping[str, frozenset[str]] | None = None  # None = 用 ROLE_ALIASES
     hint: str = ""
     analog_direct: bool = False
@@ -117,6 +119,7 @@ def all_bindings() -> tuple[ProtocolBinding, ...]:
 # ------------------------------------------------------------ 通道自动映射 ---
 
 _CH_NUM = re.compile(r"(?:通道|channel|ch|d)\s*(\d+)", re.IGNORECASE)
+_ROLE_TOKEN = re.compile(r"[A-Za-z0-9]+")
 
 
 def _norm(name: str) -> str:
@@ -124,15 +127,16 @@ def _norm(name: str) -> str:
 
 
 def _role_hit(name: str, aliases: frozenset[str]) -> bool:
-    if _norm(name) in aliases:
-        return True
-    if ":" in name:  # 多源命名空间前缀：按冒号后缀匹配（ADR-008 库能力约定）
-        return _norm(name.rsplit(":", 1)[-1]) in aliases
-    return False
+    suffix = name.rsplit(":", 1)[-1]
+    return (
+        _norm(name) in aliases
+        or _norm(suffix) in aliases
+        or any(_norm(token) in aliases for token in _ROLE_TOKEN.findall(suffix))
+    )
 
 
 def auto_map_channels(chs: list[str], binding: ProtocolBinding, overrides: dict) -> dict:
-    """角色 → 通道名：先按常见名匹配，再按序号回退，最后显式覆盖。"""
+    """角色 → 通道名：先保留显式设置，再对未提供的角色运行启发式。"""
     if not chs:
         raise ProtocolLockError(
             f"协议 {binding.protocol} 需要通道，但该源没有任何通道（数字或模拟）"
@@ -144,38 +148,46 @@ def auto_map_channels(chs: list[str], binding: ProtocolBinding, overrides: dict)
 
     mapping: dict[str, str] = {}
     used: set[str] = set()
+    supplied = {role for role in binding.roles if role in overrides}
     for role in binding.roles:
+        if role not in supplied:
+            continue
+        want = overrides[role]
+        if want is None or (isinstance(want, str) and not want.strip()):
+            continue
+        if want not in chs:
+            raise ProtocolLockError(f"通道 {want!r} 不存在；可用: {chs}")
+        mapping[role] = want
+        used.add(want)
+
+    for role in binding.roles:
+        if role in supplied:
+            continue
         aliases = binding.aliases_for(role)
-        hit = None
-        for c in chs:
-            if c in used:
-                continue
-            if _role_hit(c, aliases):
-                hit = c
-                break
-        if hit is None:  # 按序号（数字小的在前），无序号者殿后
-            numbered = [c for c in chs if numbers[c] is not None and c not in used]
-            others = [c for c in chs if numbers[c] is None and c not in used]
-            pool = sorted(numbered, key=lambda c: numbers[c]) + others
-            if pool:
-                hit = pool[0]
+        hit = next((c for c in chs if c not in used and _role_hit(c, aliases)), None)
         if hit is not None:
             mapping[role] = hit
             used.add(hit)
 
     for role in binding.roles:
-        if overrides.get(role):
-            want = overrides[role]
-            if want not in chs:
-                raise ProtocolLockError(f"通道 {want!r} 不存在；可用: {chs}")
-            mapping[role] = want
+        if role in supplied or role in mapping:
+            continue
+        numbered = [c for c in chs if numbers[c] is not None and c not in used]
+        others = [c for c in chs if numbers[c] is None and c not in used]
+        pool = sorted(numbered, key=lambda c: numbers[c]) + others
+        if pool:
+            mapping[role] = pool[0]
+            used.add(pool[0])
 
     need_min = binding.needs.get("min_digital", 0)
     got = [r for r in binding.required_roles if r in mapping]
-    if len(got) < len(binding.required_roles) or len(mapping) < need_min:
+    missing_groups = [group for group in binding.require_any
+                      if not any(role in mapping for role in group)]
+    if len(got) < len(binding.required_roles) or missing_groups or len(mapping) < need_min:
+        any_text = "" if not missing_groups else f"；至少需要其一 {list(missing_groups[0])}"
         raise ProtocolLockError(
             f"协议 {binding.protocol} 至少需要 {need_min} 个数字通道"
-            f"（角色 {list(binding.roles)}），实际可用 {len(chs)} 个: {chs}"
+            f"（角色 {list(binding.roles)}{any_text}），实际可用 {len(chs)} 个: {chs}"
         )
     return mapping
 

@@ -7,6 +7,7 @@ import pytest
 
 from decodehub.app import services
 from decodehub.app.session import SessionState
+from decodehub.decode.bindings import ProtocolBinding, auto_map_channels, get_binding
 from decodehub.decode.synth import analogify, encode_i2c, encode_spi, encode_uart, save_kingst_csv
 from decodehub.shared.errors import ProtocolLockError
 from decodehub.shared.waves import Capture, CaptureMeta
@@ -29,6 +30,37 @@ def _analog_state(wave, fs=10_000_000.0):
         meta=CaptureMeta(source_kind="synth", format_key="synth"),
         analog=[ch], capture_id="synth-analog")))
     return st
+
+
+class TestAlternativeRoleMapping:
+    def test_spi_accepts_miso_only_and_prefixed_display_names(self):
+        assert auto_map_channels(
+            ["la:SPI 0 SCK", "la:SPI 0 MISO"], get_binding("spi"), {}
+        ) == {"clk": "la:SPI 0 SCK", "miso": "la:SPI 0 MISO"}
+
+    def test_spi_rejects_clock_without_either_data_role(self):
+        with pytest.raises(ProtocolLockError, match="至少需要其一"):
+            auto_map_channels(
+                ["CLK", "GPIO"],
+                get_binding("spi"),
+                {"mosi": None, "miso": None, "cs": None},
+            )
+
+    def test_explicit_channel_is_reserved_before_heuristics(self):
+        assert auto_map_channels(
+            ["D0", "CLK", "MOSI"], get_binding("spi"), {"clk": "D0"}
+        ) == {"clk": "D0", "mosi": "MOSI", "miso": "CLK"}
+
+    def test_role_tokens_do_not_match_arbitrary_substrings(self):
+        binding = ProtocolBinding(
+            protocol="test",
+            node_type="spi_decode",
+            roles=("cs",),
+            role_aliases={"cs": frozenset({"cs", "nss"})},
+        )
+        assert auto_map_channels(["focus", "bus NSS"], binding, {}) == {
+            "cs": "bus NSS"
+        }
 
 
 class TestProtocolParamsRouted:
