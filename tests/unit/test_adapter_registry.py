@@ -26,12 +26,12 @@ _OPTION_TYPES = {"string", "number", "integer", "boolean"}
 
 class TestRegistryInvariants:
     def test_every_supported_format_is_registered(self):
-        """登记遗漏防线：9 个 v1 支持格式一个不能少（曾漏 kingst_bin）。"""
+        """登记遗漏防线：支持格式一个不能少（曾漏 kingst_bin）。"""
         assert set(SUPPORTED_FORMATS) == {
             "kingst_csv", "kingst_bin", "kingst_kvdat",
             "mho98_csv", "mho98_npz",
             "mcu_adc_csv", "mcu_adc_bin",
-            "saleae_csv", "generic_csv",
+            "saleae_csv", "sigrok_sr", "generic_csv",
         }
         assert set(PLANNED_FORMATS) == {"saleae_sal", "saleae_binary", "saleae_data_table"}
         assert set(SUPPORTED_FORMATS) | set(PLANNED_FORMATS) == set(SPECS)

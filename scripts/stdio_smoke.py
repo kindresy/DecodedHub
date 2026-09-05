@@ -11,12 +11,16 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PY = ROOT / ".venv" / "bin" / "python"
+
+
+def python_executable(root: Path = ROOT) -> str:
+    local = root / ".venv" / "bin" / "python"
+    return str(local) if local.is_file() else sys.executable
 
 
 def main() -> None:
     proc = subprocess.Popen(
-        [str(PY), "-m", "decodehub.mcp_server"],
+        [python_executable(), "-m", "decodehub.mcp_server"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, bufsize=1, cwd=ROOT,
     )

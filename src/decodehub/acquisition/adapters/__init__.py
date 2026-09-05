@@ -21,6 +21,7 @@ from .mho98_csv import SPEC as _mho98_csv
 from .mho98_npz import SPEC as _mho98_npz
 from .planned import SPECS as _PLANNED_SPECS
 from .saleae_csv import SPEC as _saleae_csv
+from .sigrok_sr import SPEC as _sigrok_sr
 from .spec import AdapterSpec
 
 # 嗅探优先序（解析/延后混合排列；sniff=None 的条目在遍历中被跳过）
@@ -29,6 +30,7 @@ _SALEAE_SAL, _SALEAE_BINARY, _SALEAE_DATA_TABLE = _PLANNED_SPECS
 SPECS: dict[str, AdapterSpec] = {}
 for _s in (
     _SALEAE_SAL,        # 规则 1: .sal / zip 工程包（延后）
+    _sigrok_sr,         # 规则 1b: .sr / Sigrok ZIP 会话
     _kingst_kvdat,      # 规则 2: kvdat 魔数
     _SALEAE_BINARY,     # 规则 3: <SALEAE> 魔数（延后）
     _mho98_npz,         # 规则 4: npz 键 t_s/v_V

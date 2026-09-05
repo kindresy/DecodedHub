@@ -84,7 +84,9 @@ class UartDecodeNode:
         n = len(cand)
         while i < n:
             ts = float(cand[i])
-            if ts < prev_end - 0.05 * bit_t:
+            # Sampled edges can be quantized up to about 0.2 UI before the
+            # ideal boundary; retain such a legitimate next start edge.
+            if ts < prev_end - 0.2 * bit_t:
                 i += 1
                 continue
 
@@ -147,7 +149,7 @@ class UartDecodeNode:
                 value=val, parity=parity, data_bits=nd,
             ))
             prev_end = frame_end
-            i = _advance_past(cand, frame_end - 0.05 * bit_t)
+            i = _advance_past(cand, frame_end - 0.25 * bit_t)
         return {"out": events}
 
 
