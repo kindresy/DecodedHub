@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
+from .schema import register_event_fields, register_kinds
+
 _PRESENTATIONS: dict[str, Presentation] = {}
 
 
@@ -32,6 +34,7 @@ class Presentation:
     kind_cn: Mapping[str, str] = field(default_factory=dict)  # kind → 中文短名
     detail_fn: Callable[[Any], str] = _label_detail      # 事件 → 表格"内容"列
     csv_columns: tuple[tuple[str, Callable], ...] = ()   # 协议专有 CSV 列 (列名, 取值fn)
+    event_fields: tuple[str, ...] = ()                    # 事件扩展字段 schema
     plot_family: bool = True                             # timing_plot 是否画该族 span
     preview_kinds: tuple[str, ...] = ()                  # run_decode 摘要预览包含的 kind
 
@@ -40,6 +43,10 @@ def register_presentation(p: Presentation) -> None:
     """注册一个协议族的呈现约定；重复 protocol 抛 ValueError。"""
     if p.protocol in _PRESENTATIONS:
         raise ValueError(f"协议呈现重复注册: {p.protocol}")
+    register_kinds(p.kind_cn)
+    fields = list(p.event_fields)
+    fields.extend(name for name, _fn in p.csv_columns if name not in fields)
+    register_event_fields(p.protocol, fields)
     _PRESENTATIONS[p.protocol] = p
 
 

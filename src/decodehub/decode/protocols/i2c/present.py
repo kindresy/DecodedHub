@@ -35,6 +35,7 @@ register_presentation(Presentation(
              "i2c.addr": "I2C·地址", "i2c.data": "I2C·数据", "i2c.transfer": "I2C·传输",
              "i2c.warn": "I2C!"},
     detail_fn=_detail,
+    event_fields=("address", "is_10bit", "read", "data_bytes", "acks", "byte_index"),
     csv_columns=(("value_or_address", _address), ("read", _read),
                  ("data_bytes", _data_bytes), ("acks", _acks)),
     preview_kinds=("i2c.transfer", "i2c.addr"),

@@ -20,6 +20,7 @@ register_presentation(Presentation(
     protocol="uart",
     kind_cn={"uart.frame": "UART", "uart.warn": "UART!"},
     detail_fn=_detail,
+    event_fields=("value", "parity", "data_bits"),
     csv_columns=(("value_or_address", _value),),
     preview_kinds=("uart.frame",),
 ))

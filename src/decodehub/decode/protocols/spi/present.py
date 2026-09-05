@@ -30,6 +30,7 @@ register_presentation(Presentation(
     protocol="spi",
     kind_cn={"spi.word": "SPI·词", "spi.transfer": "SPI·传输", "spi.warn": "SPI!"},
     detail_fn=_detail,
+    event_fields=("mosi", "miso", "word_bits", "words"),
     csv_columns=(("mosi", _mosi), ("miso", _miso), ("word_bits", _word_bits)),
     preview_kinds=("spi.transfer", "spi.word"),
 ))

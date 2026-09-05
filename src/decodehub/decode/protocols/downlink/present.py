@@ -32,6 +32,7 @@ def _confidence(ev: DownlinkEvent) -> str:
 register_presentation(Presentation(
     protocol="downlink",
     kind_cn={"downlink.packet": "下行·包", "downlink.warn": "下行!"},
+    event_fields=("value", "value_inv", "bits", "slot", "frame", "fc_est", "confidence"),
     csv_columns=(("value_or_address", _value), ("fc_hz", _fc_hz), ("slot", _slot),
                  ("frame", _frame), ("confidence", _confidence)),
     preview_kinds=("downlink.packet",),

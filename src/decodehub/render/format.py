@@ -68,14 +68,15 @@ def report_csv_rows(report: DecodeReport) -> str:
     w = csv.writer(buf)
     proto_cols = _csv_union_columns()
     w.writerow(["idx", "t_start", "t_end", "duration_s", "kind", "label", "ann_class", "errors",
-                *proto_cols])
+                *proto_cols, "schema_version"])
     for i, ev in enumerate(report.events, 1):
+        ev.to_dict()  # validate the publication contract before exporting
         pres = presentation_of(ev.kind)
         fns = dict(pres.csv_columns) if pres else {}
         w.writerow([
             i, f"{ev.t_start:.9g}", f"{ev.t_end:.9g}", f"{ev.t_end - ev.t_start:.9g}",
             ev.kind, ev.label, ev.ann_class, ";".join(ev.errors),
-            *(fns[name](ev) if name in fns else "" for name in proto_cols),
+            *(fns[name](ev) if name in fns else "" for name in proto_cols), ev.schema_version,
         ])
     return buf.getvalue()
 

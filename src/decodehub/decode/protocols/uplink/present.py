@@ -29,6 +29,7 @@ register_presentation(Presentation(
     protocol="uplink",
     kind_cn={"uplink.frame": "上行·帧", "uplink.warn": "上行!"},
     detail_fn=_detail,
+    event_fields=("value", "data_bits", "pream_ok", "confidence", "burst"),
     csv_columns=(("value_or_address", _value), ("pream_ok", _pream_ok),
                  ("confidence", _confidence)),
     preview_kinds=("uplink.frame",),

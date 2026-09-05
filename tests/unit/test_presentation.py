@@ -77,7 +77,7 @@ def test_csv_header_union_matches_current_order():
         "idx,t_start,t_end,duration_s,kind,label,ann_class,errors,"
         "value_or_address,read,data_bytes,acks,mosi,miso,word_bits,"
         "pream_ok,confidence,fc_hz,slot,frame,")
-    assert header.splitlines()[0].endswith(",fields,source_kind,spec")
+    assert header.splitlines()[0].endswith(",fields,source_kind,spec,schema_version")
 
 
 def test_csv_rows_fill_only_own_protocol_columns():
@@ -85,17 +85,25 @@ def test_csv_rows_fill_only_own_protocol_columns():
         UartEvent(kind="uart.frame", t_start=0.0, t_end=1e-4, label="F", value=0x41),
         I2cEvent(kind="i2c.transfer", t_start=1e-4, t_end=2e-4, label="W",
                  address=0x51, read=False, data_bytes=[0x12, 0x34], acks=[True, False]),
-        DecodedEvent(kind="mystery.x", t_start=2e-4, t_end=3e-4, label="M"),
     ])
     rows = report_csv_rows(rep).strip().splitlines()
-    assert len(rows) == 4
+    assert len(rows) == 3
     n_cols = len(rows[0].split(","))  # 相对断言基准 = 实际表头列数
     uart = rows[1].split(",")
-    assert uart[8] == "65" and uart[9:] == [""] * (n_cols - 9)
+    assert uart[8] == "65" and uart[9:-1] == [""] * (n_cols - 10)
+    assert uart[-1] == "1.0"
     i2c = rows[2].split(",")
     assert i2c[8] == "81" and i2c[9] == "False" and i2c[10] == "12 34" and i2c[11] == "AN"
-    assert i2c[12:] == [""] * (n_cols - 12)
-    assert rows[3].split(",")[8:] == [""] * (n_cols - 8)  # 未注册 kind：协议列全空
+    assert i2c[12:-1] == [""] * (n_cols - 13)
+    assert i2c[-1] == "1.0"
+
+
+def test_csv_rejects_unregistered_kind_instead_of_silent_fallback():
+    report = DecodeReport(protocol="x", params={}, events=[
+        DecodedEvent(kind="mystery.x", t_start=0.0, t_end=1e-4, label="M"),
+    ])
+    with pytest.raises(ValueError, match="kind"):
+        report_csv_rows(report)
 
 
 def test_all_preview_kinds_union_contains_downlink():

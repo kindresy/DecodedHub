@@ -8,6 +8,8 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass, field
 
+from .schema import EVENT_SCHEMA_VERSION, REPORT_SCHEMA_VERSION, validate_event
+
 
 @dataclass
 class DecodedEvent:
@@ -17,8 +19,10 @@ class DecodedEvent:
     label: str
     errors: list[str] = field(default_factory=list)
     ann_class: str = "data"  # start/stop/data/ack/warn/err
+    schema_version: str = field(default=EVENT_SCHEMA_VERSION, kw_only=True)
 
     def to_dict(self) -> dict:
+        validate_event(self)
         return asdict(self)
 
 
@@ -85,6 +89,7 @@ class DecodeReport:
     events: list[DecodedEvent]
     node_id: str = ""
     wall_ms: float = 0.0
+    schema_version: str = field(default=REPORT_SCHEMA_VERSION, kw_only=True)
 
     def counts(self) -> dict:
         by_kind: dict[str, int] = {}
@@ -95,7 +100,13 @@ class DecodeReport:
         return {"total": len(self.events), "by_kind": by_kind, "errors": n_err}
 
     def to_json(self) -> dict:
+        if self.schema_version != REPORT_SCHEMA_VERSION:
+            raise ValueError(
+                f"报告 schema_version={self.schema_version!r} 不兼容；"
+                f"当前为 {REPORT_SCHEMA_VERSION!r}"
+            )
         return {
+            "schema_version": self.schema_version,
             "protocol": self.protocol,
             "params": self.params,
             "counts": self.counts(),
@@ -103,4 +114,3 @@ class DecodeReport:
             "wall_ms": round(self.wall_ms, 3),
             "events": [e.to_dict() for e in self.events],
         }
-

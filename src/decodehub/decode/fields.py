@@ -42,6 +42,7 @@ from typing import Any, Callable, Mapping
 from ..shared.errors import DecodehubError, FieldSpecError
 from .events import DecodedEvent
 from .presentation import Presentation, register_presentation
+from .schema import validate_event
 
 
 @dataclass
@@ -74,6 +75,7 @@ class FieldSetEvent(DecodedEvent):
     fields: list[FieldView] = dc_field(default_factory=list)
 
     def to_dict(self) -> dict:
+        validate_event(self)
         d = asdict(self)
 
         def conv(v: Any) -> Any:
@@ -1190,6 +1192,7 @@ def register_fields_presentation() -> None:
         protocol="fields",
         kind_cn={"fields.split": "字段"},
         detail_fn=format_detail,
+        event_fields=("spec", "source_kind", "fields"),
         csv_columns=(("fields", format_detail), ("source_kind", lambda ev: ev.source_kind),
                      ("spec", lambda ev: ev.spec)),
         plot_family=False,  # 字段树不往时序图里添 span
